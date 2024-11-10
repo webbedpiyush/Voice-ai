@@ -4,11 +4,11 @@ import AssistantButton from "@/components/AssistantButton";
 export default function Home() {
   return (
     <div>
-      <div className="hidden md:block">
+      <div className="block">
         <main className="flex flex-col justify-center items-center p-24 min-h-screen">
           <div>
             <Image
-              src={"/mini_siri.png"}
+              src={"/logo.png"}
               alt="main logo"
               width={650}
               height={100}

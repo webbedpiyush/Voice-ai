@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  ...(process.env.OPENAI_BASE_URL && { baseURL: process.env.OPENAI_BASE_URL }),
-});
 
 export async function POST(req: NextRequest) {
-  const { messages } = await req.json();
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    stream: false,
-    messages,
-  });
+  try {
+    const { question } = await req.json();
 
-  return NextResponse.json(response.choices[0].message.content);
+    const cloudflareWorkerUrl = `${process.env.CF_URL}chat`;
+
+    const response = await fetch(cloudflareWorkerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question }),
+    });
+
+    const data = await response.text();
+    return NextResponse.json({ content: data });
+  } catch (error) {
+    console.error("Chat Error:", error);
+    return NextResponse.json(
+      { error: "Failed to retrieve chat response" },
+      { status: 500 }
+    );
+  }
 }

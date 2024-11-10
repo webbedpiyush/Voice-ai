@@ -4,17 +4,6 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-interface VoiceSettings {
-  stability: number;
-  similarity_boost: number;
-}
-
-interface TextToSpeechData {
-  text: string;
-  model_id: string;
-  voice_settings: VoiceSettings;
-}
-
 const AssistantButton = () => {
   const [audioPlaying, setAudioPlaying] = useState<boolean>(false);
   const [mediaRecorderInitialised, setMediaRecorderInitialised] =
@@ -28,28 +17,30 @@ const AssistantButton = () => {
 
   const playAudio = async (input: string): Promise<void> => {
     const CHUNK_SIZE = 1024;
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID}/stream`;
+    const voiceid = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceid}/stream`;
+    console.log(input);
 
     const headers = {
       Accept: "audio/mpeg",
       "Content-Type": "application/json",
-      "xi-api-key": process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || "",
+      "xi-api-key": `${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}`,
     };
 
-    const data: TextToSpeechData = {
+    const data: any = JSON.stringify({
       text: input,
-      model_id: "eleven_multiinput_v2",
+      model_id: "eleven_multilingual_v2",
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.5,
       },
-    };
+    });
 
     try {
       const response = await fetch(url, {
         method: "POST",
         headers,
-        body: JSON.stringify(data),
+        body: data,
       });
 
       if (!response.ok) {
@@ -57,8 +48,6 @@ const AssistantButton = () => {
       }
 
       const audioContext = new window.AudioContext();
-      // const audioContext = new (window.AudioContext ||
-      //   (window as any).webkitAudioContext())();
       const source = audioContext.createBufferSource();
 
       const audioBuffer = await response.arrayBuffer();
@@ -153,11 +142,9 @@ const AssistantButton = () => {
                 };
 
                 newMediaRecorder.onstop = async () => {
-                  console.time("Entire function");
-
                   const audioBlob = new Blob(chunks, { type: "audio/webm" });
                   const audioUrl = URL.createObjectURL(audioBlob);
-                  const audio = new Audio(audioUrl);
+                  const audio = new Audio(audioUrl);                  
 
                   audio.onerror = function (error) {
                     console.error("Error playing audio:", error);
@@ -173,7 +160,7 @@ const AssistantButton = () => {
                       )[1];
 
                       if (base64Audio) {
-                        const response = await fetch("/api/speechToText", {
+                        const response: any = await fetch("/api/speechToText", {
                           method: "POST",
                           headers: {
                             "Content-Type": "application/json",
@@ -182,6 +169,7 @@ const AssistantButton = () => {
                         });
 
                         const data = await response.json();
+                        
                         if (response.status !== 200) {
                           throw (
                             data.error ||
@@ -191,18 +179,13 @@ const AssistantButton = () => {
                           );
                         }
 
-                        console.timeEnd("speech to text");
+                        
 
                         const completion = await axios.post("/api/chat", {
-                          messages: [
-                            {
-                              role: "user",
-                              content: `${data.result} Your answer has to be as consise as possible.`,
-                            },
-                          ],
+                          question: data,
                         });
 
-                        handlePlayButtonClick(completion.data);
+                        handlePlayButtonClick(completion.data.content);
                       }
                     };
                   } catch (err) {
